@@ -3,6 +3,7 @@ import { Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import { getAlumnos } from '../services/AlumnoService';
 import { Button, Offcanvas, Form } from 'react-bootstrap';
+import axios from 'axios';
 
 // Registrar los componentes necesarios de Chart.js
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
@@ -17,7 +18,13 @@ const Estadisticas = () => {
     const [filtroDisponibilidad, setFiltroDisponibilidad] = useState('');
     const [filtroSituacionLaboral, setFiltroSituacionLaboral] = useState('');
     const [filtroStatus, setFiltroStatus] = useState('');
-    const [filtroEdad, setFiltroEdad] = useState([0, 100]); 
+    const [filtroEdad, setFiltroEdad] = useState([0, 1000]); // Rango de edad
+    const [filtroPais, setFiltroPais] = useState('');
+    const [filtroProvincia, setFiltroProvincia] = useState('');
+
+    // Datos de países y provincias
+    const [paises, setPaises] = useState([]);
+    const [provincias, setProvincias] = useState([]);
 
     const [chartData, setChartData] = useState({
         labels: [],
@@ -33,8 +40,28 @@ const Estadisticas = () => {
                 prepareChartData(data);
             }
         };
+
+        const fetchPaises = async () => {
+            try {
+                const response = await axios.get('http://localhost:8080/paises'); // Cambia la URL según tu backend
+                setPaises(response.data);
+            } catch (error) {
+                console.error('Error al obtener países:', error);
+            }
+        };
+
         fetchAlumnos();
+        fetchPaises();
     }, []);
+
+    const fetchProvincias = async (paisId) => {
+        try {
+            const response = await axios.get(`http://localhost:8080/provincias/${paisId}`); // Cambia la URL según tu backend
+            setProvincias(response.data);
+        } catch (error) {
+            console.error('Error al obtener provincias:', error);
+        }
+    };
 
     const calcularEdad = (fechaNacimiento) => {
         const hoy = new Date();
@@ -55,12 +82,13 @@ const Estadisticas = () => {
                 (filtroDisponibilidad === '' || alumno.disponibilidad === filtroDisponibilidad) &&
                 (filtroSituacionLaboral === '' || alumno.situacionLaboral === filtroSituacionLaboral) &&
                 (filtroStatus === '' || alumno.status === filtroStatus) &&
-                (edad >= filtroEdad[0] && edad <= filtroEdad[1])
+                (edad >= filtroEdad[0] && edad <= filtroEdad[1]) &&
+                (filtroPais === '' || alumno.pais === filtroPais) &&
+                (filtroProvincia === '' || alumno.provincia === filtroProvincia)
             );
         });
         setFilteredAlumnos(filtered);
         prepareChartData(filtered);
-        setShowFilters(false); 
     };
 
     const prepareChartData = (data) => {
@@ -79,6 +107,23 @@ const Estadisticas = () => {
                 },
             ],
         });
+    };
+
+    const handlePaisChange = (e) => {
+        const selectedPais = e.target.value;
+        setFiltroPais(selectedPais);
+        setFiltroProvincia(''); // Reiniciar la provincia al cambiar el país
+        if (selectedPais) {
+            fetchProvincias(selectedPais);
+        } else {
+            setProvincias([]);
+        }
+        applyFilters(); // Aplicar filtros automáticamente
+    };
+
+    const handleProvinciaChange = (e) => {
+        setFiltroProvincia(e.target.value);
+        applyFilters(); // Aplicar filtros automáticamente
     };
 
     const handleEdadChange = (e, index) => {
@@ -101,7 +146,31 @@ const Estadisticas = () => {
                 </Offcanvas.Header>
                 <Offcanvas.Body>
                     <Form>
-                        <Form.Group controlId="filtroSexo">
+                        <Form.Group controlId="filtroPais" className="mt-3">
+                            <Form.Label>País</Form.Label>
+                            <Form.Select value={filtroPais} onChange={handlePaisChange}>
+                                <option value="">Todos</option>
+                                {paises.map((pais) => (
+                                    <option key={pais.id} value={pais.paisnombre}>
+                                        {pais.paisnombre}
+                                    </option>
+                                ))}
+                            </Form.Select>
+                        </Form.Group>
+
+                        <Form.Group controlId="filtroProvincia" className="mt-3">
+                            <Form.Label>Provincia</Form.Label>
+                            <Form.Select value={filtroProvincia} onChange={handleProvinciaChange} disabled={!filtroPais}>
+                                <option value="">Todas</option>
+                                {provincias.map((provincia) => (
+                                    <option key={provincia.id} value={provincia.estadonombre}>
+                                        {provincia.estadonombre}
+                                    </option>
+                                ))}
+                            </Form.Select>
+                        </Form.Group>
+
+                        <Form.Group controlId="filtroSexo" className="mt-3">
                             <Form.Label>Sexo</Form.Label>
                             <Form.Select value={filtroSexo} onChange={(e) => setFiltroSexo(e.target.value)}>
                                 <option value="">Todos</option>

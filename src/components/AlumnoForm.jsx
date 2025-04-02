@@ -1,254 +1,293 @@
-import React, { useEffect, useState } from 'react';
-import { Bar } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
-import { getAlumnos } from '../services/AlumnoService';
-import { Button, Offcanvas, Form } from 'react-bootstrap';
-import axios from 'axios';
+import React, { useState, useEffect } from 'react';
+import { Button, Form, Modal } from 'react-bootstrap';
+import { addAlumno, updateAlumno, getAlumnos } from '../services/AlumnoService';
 
-// Registrar los componentes necesarios de Chart.js
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
-
-const Estadisticas = () => {
-    const [alumnos, setAlumnos] = useState([]);
-    const [, setFilteredAlumnos] = useState([]);
-    const [showFilters, setShowFilters] = useState(false);
-
-    // Filtros
-    const [filtroSexo, setFiltroSexo] = useState('');
-    const [filtroDisponibilidad, setFiltroDisponibilidad] = useState('');
-    const [filtroSituacionLaboral, setFiltroSituacionLaboral] = useState('');
-    const [filtroStatus, setFiltroStatus] = useState('');
-    const [filtroEdad, setFiltroEdad] = useState([0, 1000]); // Rango de edad
-    const [filtroPais, setFiltroPais] = useState('');
-    const [filtroProvincia, setFiltroProvincia] = useState('');
-
-    // Datos de países y provincias
-    const [paises, setPaises] = useState([]);
-    const [provincias, setProvincias] = useState([]);
-
-    const [chartData, setChartData] = useState({
-        labels: [],
-        datasets: [],
+const AlumnoForm = ({ show, onHide, alumno, setAlumnos }) => {
+    const [formData, setFormData] = useState({
+        nombre: '',
+        apellidos: '',
+        email: '',
+        telefono: '',
+        direccion: '',
+        codigoPostañal: '',
+        fechaNacimiento: '',
+        dni: '',
+        pais: '',
+        provincia: '',
+        sexo: '',
+        disponibilidad: '',
+        propietario: '',
+        creado: '',
+        situacionLaboral: '',
+        status: ''
     });
 
     useEffect(() => {
-        const fetchAlumnos = async () => {
-            const data = await getAlumnos();
-            if (data && Array.isArray(data)) {
-                setAlumnos(data);
-                setFilteredAlumnos(data);
-                prepareChartData(data);
-            }
-        };
-
-        const fetchPaises = async () => {
-            try {
-                const response = await axios.get('http://localhost:8080/paises'); // Cambia la URL según tu backend
-                setPaises(response.data);
-            } catch (error) {
-                console.error('Error al obtener países:', error);
-            }
-        };
-
-        fetchAlumnos();
-        fetchPaises();
-    }, []);
-
-    const fetchProvincias = async (paisId) => {
-        try {
-            const response = await axios.get(`http://localhost:8080/provincias/${paisId}`); // Cambia la URL según tu backend
-            setProvincias(response.data);
-        } catch (error) {
-            console.error('Error al obtener provincias:', error);
-        }
-    };
-
-    const calcularEdad = (fechaNacimiento) => {
-        const hoy = new Date();
-        const nacimiento = new Date(fechaNacimiento);
-        let edad = hoy.getFullYear() - nacimiento.getFullYear();
-        const mes = hoy.getMonth() - nacimiento.getMonth();
-        if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) {
-            edad--;
-        }
-        return edad;
-    };
-
-    const applyFilters = () => {
-        const filtered = alumnos.filter((alumno) => {
-            const edad = calcularEdad(alumno.fechaNacimiento);
-            return (
-                (filtroSexo === '' || alumno.sexo === filtroSexo) &&
-                (filtroDisponibilidad === '' || alumno.disponibilidad === filtroDisponibilidad) &&
-                (filtroSituacionLaboral === '' || alumno.situacionLaboral === filtroSituacionLaboral) &&
-                (filtroStatus === '' || alumno.status === filtroStatus) &&
-                (edad >= filtroEdad[0] && edad <= filtroEdad[1]) &&
-                (filtroPais === '' || alumno.pais === filtroPais) &&
-                (filtroProvincia === '' || alumno.provincia === filtroProvincia)
-            );
-        });
-        setFilteredAlumnos(filtered);
-        prepareChartData(filtered);
-    };
-
-    const prepareChartData = (data) => {
-        const genderCounts = {
-            Masculino: data.filter((alumno) => alumno.sexo === 'Masculino').length,
-            Femenino: data.filter((alumno) => alumno.sexo === 'Femenino').length,
-        };
-
-        setChartData({
-            labels: ['Masculino', 'Femenino'],
-            datasets: [
-                {
-                    label: 'Cantidad de Alumnos',
-                    data: [genderCounts.Masculino, genderCounts.Femenino],
-                    backgroundColor: ['rgba(54, 162, 235, 0.6)', 'rgba(255, 99, 132, 0.6)'],
-                },
-            ],
-        });
-    };
-
-    const handlePaisChange = (e) => {
-        const selectedPais = e.target.value;
-        setFiltroPais(selectedPais);
-        setFiltroProvincia(''); // Reiniciar la provincia al cambiar el país
-        if (selectedPais) {
-            fetchProvincias(selectedPais);
+        if (alumno) {
+            setFormData({
+                nombre: alumno.nombre,
+                apellidos: alumno.apellidos,
+                email: alumno.email,
+                telefono: alumno.telefono,
+                direccion: alumno.direccion,
+                codigoPostal: alumno.codigoPostal,
+                fechaNacimiento: alumno.fechaNacimiento,
+                dni: alumno.dni,
+                pais: alumno.pais,
+                provincia: alumno.provincia,
+                sexo: alumno.sexo,
+                disponibilidad: alumno.disponibilidad,
+                propietario: alumno.propietario,
+                creado: alumno.creado,
+                situacionLaboral: alumno.situacionLaboral,
+                status: alumno.status
+            });
         } else {
-            setProvincias([]);
+            // Si no hay un alumno seleccionado (añadir nuevo), reseteamos los campos
+            setFormData({
+                nombre: '',
+                apellidos: '',
+                email: '',
+                telefono: '',
+                direccion: '',
+                codigoPostal: '',
+                fechaNacimiento: '',
+                dni: '',
+                pais: '',
+                provincia: '',
+                sexo: '',
+                disponibilidad: '',
+                propietario: '',
+                creado: '',
+                situacionLaboral: '',
+                status: ''
+            });
         }
-        applyFilters(); // Aplicar filtros automáticamente
+    }, [alumno]);
+
+    const handleChange = (e) => {
+        setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    const handleProvinciaChange = (e) => {
-        setFiltroProvincia(e.target.value);
-        applyFilters(); // Aplicar filtros automáticamente
-    };
-
-    const handleEdadChange = (e, index) => {
-        const newFiltroEdad = [...filtroEdad];
-        newFiltroEdad[index] = parseInt(e.target.value, 10);
-        setFiltroEdad(newFiltroEdad);
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (alumno) {
+            await updateAlumno(alumno.id, formData);
+        } else {
+            await addAlumno(formData);
+        }
+        setAlumnos(await getAlumnos());
+        onHide();
     };
 
     return (
-        <div style={{ textAlign: 'center', margin: '20px' }}>
-            <h1>Estadísticas de Alumnos</h1>
-            <Button variant="primary" onClick={() => setShowFilters(true)} style={{ marginBottom: '20px' }}>
-                &#9776; Filtros
-            </Button>
+        <Modal show={show} onHide={onHide}>
+            <Modal.Header closeButton>
+                <Modal.Title>{alumno ? 'Editar Alumno' : 'Añadir Alumno'}</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+                <Form onSubmit={handleSubmit}>
+                    <Form.Group controlId="formNombre">
+                        <Form.Label>Nombre</Form.Label>
+                        <Form.Control
+                            type="text"
+                            name="nombre"
+                            value={formData.nombre}
+                            onChange={handleChange}
+                            required
+                        />
+                    </Form.Group>
 
-            {/* Panel lateral de filtros */}
-            <Offcanvas show={showFilters} onHide={() => setShowFilters(false)} placement="end">
-                <Offcanvas.Header closeButton>
-                    <Offcanvas.Title>Filtros</Offcanvas.Title>
-                </Offcanvas.Header>
-                <Offcanvas.Body>
-                    <Form>
-                        <Form.Group controlId="filtroPais" className="mt-3">
-                            <Form.Label>País</Form.Label>
-                            <Form.Select value={filtroPais} onChange={handlePaisChange}>
-                                <option value="">Todos</option>
-                                {paises.map((pais) => (
-                                    <option key={pais.id} value={pais.paisnombre}>
-                                        {pais.paisnombre}
-                                    </option>
-                                ))}
-                            </Form.Select>
-                        </Form.Group>
+                    <Form.Group controlId="formApellidos">
+                        <Form.Label>Apellidos</Form.Label>
+                        <Form.Control
+                            type="text"
+                            name="apellidos"
+                            value={formData.apellidos}
+                            onChange={handleChange}
+                            required
+                        />
+                    </Form.Group>
 
-                        <Form.Group controlId="filtroProvincia" className="mt-3">
-                            <Form.Label>Provincia</Form.Label>
-                            <Form.Select value={filtroProvincia} onChange={handleProvinciaChange} disabled={!filtroPais}>
-                                <option value="">Todas</option>
-                                {provincias.map((provincia) => (
-                                    <option key={provincia.id} value={provincia.estadonombre}>
-                                        {provincia.estadonombre}
-                                    </option>
-                                ))}
-                            </Form.Select>
-                        </Form.Group>
+                    <Form.Group controlId="formEmail">
+                        <Form.Label>Email</Form.Label>
+                        <Form.Control
+                            type="email"
+                            name="email"
+                            value={formData.email}
+                            onChange={handleChange}
+                            required
+                        />
+                    </Form.Group>
 
-                        <Form.Group controlId="filtroSexo" className="mt-3">
-                            <Form.Label>Sexo</Form.Label>
-                            <Form.Select value={filtroSexo} onChange={(e) => setFiltroSexo(e.target.value)}>
-                                <option value="">Todos</option>
-                                <option value="Masculino">Masculino</option>
-                                <option value="Femenino">Femenino</option>
-                            </Form.Select>
-                        </Form.Group>
+                    <Form.Group controlId="formTelefono">
+                        <Form.Label>Teléfono</Form.Label>
+                        <Form.Control
+                            type="text"
+                            name="telefono"
+                            value={formData.telefono}
+                            onChange={handleChange}
+                        />
+                    </Form.Group>
 
-                        <Form.Group controlId="filtroDisponibilidad" className="mt-3">
-                            <Form.Label>Disponibilidad</Form.Label>
-                            <Form.Select value={filtroDisponibilidad} onChange={(e) => setFiltroDisponibilidad(e.target.value)}>
-                                <option value="">Todos</option>
-                                <option value="Mañana">Mañana</option>
-                                <option value="Tarde">Tarde</option>
-                            </Form.Select>
-                        </Form.Group>
+                    <Form.Group controlId="formDireccion">
+                        <Form.Label>Dirección</Form.Label>
+                        <Form.Control
+                            type="text"
+                            name="direccion"
+                            value={formData.direccion}
+                            onChange={handleChange}
+                        />
+                    </Form.Group>
 
-                        <Form.Group controlId="filtroSituacionLaboral" className="mt-3">
-                            <Form.Label>Situación Laboral</Form.Label>
-                            <Form.Select value={filtroSituacionLaboral} onChange={(e) => setFiltroSituacionLaboral(e.target.value)}>
-                                <option value="">Todos</option>
-                                <option value="Desempleado">Desempleado</option>
-                                <option value="ocupado">Ocupado</option>
-                            </Form.Select>
-                        </Form.Group>
+                    <Form.Group controlId="formCodigoPostal">
+                        <Form.Label>Código Postal</Form.Label>
+                        <Form.Control
+                            type="text"
+                            name="codigoPostal"
+                            value={formData.codigoPostal}
+                            onChange={handleChange}
+                        />
+                    </Form.Group>
 
-                        <Form.Group controlId="filtroStatus" className="mt-3">
-                            <Form.Label>Status</Form.Label>
-                            <Form.Select value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)}>
-                                <option value="">Todos</option>
-                                <option value="cliente">Cliente</option>
-                                <option value="en_oportunidad">En Oportunidad</option>
-                                <option value="lead_caliente">Lead Caliente</option>
-                                <option value="lead_frio">Lead Frío</option>
-                                <option value="lead_templado">Lead Templado</option>
-                            </Form.Select>
-                        </Form.Group>
+                    <Form.Group controlId="formFechaNacimiento">
+                        <Form.Label>Fecha de Nacimiento</Form.Label>
+                        <Form.Control
+                            type="date"
+                            name="fechaNacimiento"
+                            value={formData.fechaNacimiento}
+                            onChange={handleChange}
+                            required
+                        />
+                    </Form.Group>
 
-                        <Form.Group controlId="filtroEdad" className="mt-3">
-                            <Form.Label>Rango de Edad</Form.Label>
-                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                <Form.Control
-                                    type="number"
-                                    value={filtroEdad[0]}
-                                    onChange={(e) => handleEdadChange(e, 0)}
-                                    min="0"
-                                    max="1000"
-                                />
-                                <span>-</span>
-                                <Form.Control
-                                    type="number"
-                                    value={filtroEdad[1]}
-                                    onChange={(e) => handleEdadChange(e, 1)}
-                                    min="0"
-                                    max="1000"
-                                />
-                            </div>
-                        </Form.Group>
+                    <Form.Group controlId="formdni">
+                        <Form.Label>DNI</Form.Label>
+                        <Form.Control
+                            type="text"
+                            name="dni"
+                            value={formData.dni}
+                            onChange={handleChange}
+                            required
+                        />
+                    </Form.Group>
 
-                        <Button variant="primary" className="mt-4" onClick={applyFilters}>
-                            Aplicar Filtros
-                        </Button>
-                    </Form>
-                </Offcanvas.Body>
-            </Offcanvas>
+                    <Form.Group controlId="formPais">
+                        <Form.Label>País</Form.Label>
+                        <Form.Control
+                            type="text"
+                            name="pais"
+                            value={formData.pais}
+                            onChange={handleChange}
+                        />
+                    </Form.Group>
 
-            {/* Gráfico */}
-            <div style={{ marginTop: '20px' }}>
-                {chartData.labels.length > 0 ? (
-                    <Bar data={chartData} options={{ responsive: true }} />
-                ) : (
-                    <p>No hay datos disponibles para mostrar.</p>
-                )}
-            </div>
-        </div>
+                    <Form.Group controlId="formProvincia">
+                        <Form.Label>Provincia</Form.Label>
+                        <Form.Control
+                            type="text"
+                            name="provincia"
+                            value={formData.provincia}
+                            onChange={handleChange}
+                        />
+                    </Form.Group>
+
+                    <Form.Group controlId="formSexo">
+                        <Form.Label>Sexo</Form.Label>
+                        <Form.Control
+                            as="select"
+                            name="sexo"
+                            value={formData.sexo}
+                            onChange={handleChange}
+                            required
+                        >
+                            <option value="">Seleccione un sexo</option>
+                            <option value="Masculino">Masculino</option>
+                            <option value="Femenino">Femenino</option>
+                        </Form.Control>
+                    </Form.Group>
+
+                    <Form.Group controlId="formDisponibilidad">
+                        <Form.Label>Disponibilidad</Form.Label>
+                        <Form.Control
+                            as="select"
+                            name="disponibilidad"
+                            value={formData.disponibilidad}
+                            onChange={handleChange}
+                            required
+                        >
+                            <option value="">Seleccione un turno</option>
+                            <option value="Mañana">Mañana</option>
+                            <option value="Tarde">Tarde</option>
+                        </Form.Control>
+                    </Form.Group>
+
+                    <Form.Group controlId="formPropietario">
+                        <Form.Label>Propietario</Form.Label>
+                        <Form.Control
+                            type="text"
+                            name="propietario"
+                            value={formData.propietario}
+                            onChange={handleChange}
+                        />
+                    </Form.Group>
+
+                    <Form.Group controlId="formCreado">
+                        <Form.Label>Fecha de Inscripción</Form.Label>
+                        <Form.Control
+                            type="date"
+                            name="creado"
+                            value={formData.creado}
+                            onChange={handleChange}
+                            required
+                        />
+                    </Form.Group>
+
+                    <Form.Group controlId="formSituacionLaboral">
+                        <Form.Label>Situación Laboral</Form.Label>
+                        <Form.Control
+                            as="select"
+                            name="situacionLaboral"
+                            value={formData.situacionLaboral}
+                            onChange={handleChange}
+                            required
+                        >
+                            <option value="">Seleccione una opción</option>
+                            <option value="Desempleado">Desempleado</option>
+                            <option value="Ocupado">Ocupado</option>
+                        </Form.Control>
+                    </Form.Group>
+
+                    <Form.Group controlId="formStatus">
+                        <Form.Label>Status</Form.Label>
+                        <Form.Control
+                            as="select"
+                            name="status"
+                            value={formData.status}
+                            onChange={handleChange}
+                            required
+                        >
+                            <option value="">Seleccione un estado</option>
+                            <option value="lead_caliente">Lead caliente</option>
+                            <option value="lead_templado">Lead templado</option>
+                            <option value="lead_frio">Lead frio</option>
+                            <option value="cliente">Cliente</option>
+                            <option value="en_oportunidad">En oportunidad</option>
+
+                        </Form.Control>
+                    </Form.Group>
+
+                    <hr />
+
+                    <Button variant="primary" type="submit">
+                        {alumno ? 'Actualizar' : 'Añadir'}
+                    </Button>
+                </Form>
+            </Modal.Body>
+        </Modal>
     );
 };
 
-export default Estadisticas;
+export default AlumnoForm;
 
 

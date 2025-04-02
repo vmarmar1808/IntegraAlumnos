@@ -62,7 +62,7 @@ const AlumnoList = () => {
     const exportAlumnos = (type) => {
         const alumnosData = [
             ["ID", "Nombre", "Apellidos", "DNI", "Email","Telefono","Direccion","Pais","Provincia","Propietario","Creado", "Sexo", "Situación Laboral", "Disponibilidad", "Estado", "Fecha Nacimiento"],
-            ...alumnos.map(alumno => [
+            ...filteredAlumnos.map(alumno => [
                 alumno.id, alumno.nombre, alumno.apellidos, alumno.dni, alumno.email, alumno.telefono, alumno.direccion, alumno.pais, alumno.provincia, alumno.propietario, alumno.creado, alumno.sexo, alumno.situacionLaboral, alumno.disponibilidad, alumno.status, alumno.fechaNacimiento
             ])
         ];
@@ -109,21 +109,22 @@ const AlumnoList = () => {
         <div>
             <h1 className="text-center">Lista de Alumnos</h1>
             <br /><br />
-            <Button variant="primary" onClick={handleAdd}>Añadir Alumno</Button>
-            <Accordion defaultActiveKey="0">
-                <Accordion.Item eventKey="0">
-                    <Accordion.Header>Exportar Datos</Accordion.Header>
-                    <Accordion.Body>
-                        <Button variant="primary" onClick={() => exportAlumnos('excel')}>
-                            Exportar a Excel
-                        </Button>
-                        <br />
-                        <Button variant="secondary" onClick={() => exportAlumnos('pdf')}>
-                            Exportar a PDF
-                        </Button>
-                    </Accordion.Body>
-                </Accordion.Item>
-            </Accordion>
+            <div className="d-flex align-items-center justify-content-between mb-3">
+                <Button variant="primary" onClick={handleAdd}>Añadir Alumno</Button>
+                <Accordion className="ms-3" style={{ width: 'auto' }} defaultActiveKey="0">
+                    <Accordion.Item eventKey="0">
+                        <Accordion.Header>Exportar a PDF o Excel</Accordion.Header>
+                        <Accordion.Body>
+                            <Button variant="primary" className="me-2" onClick={() => exportAlumnos('excel')}>
+                                Exportar a Excel
+                            </Button>
+                            <Button variant="secondary" onClick={() => exportAlumnos('pdf')}>
+                                Exportar a PDF
+                            </Button>
+                        </Accordion.Body>
+                    </Accordion.Item>
+                </Accordion>
+            </div>
             <hr />
 
             {/* Búsqueda y filtros */}

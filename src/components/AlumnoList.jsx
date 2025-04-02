@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Table, Form, Row, Col } from 'react-bootstrap';
+import { Button, Table, Form, Row, Col, Accordion } from 'react-bootstrap';
 import { getAlumnos, deleteAlumno } from '../services/AlumnoService';
 import AlumnoDetailsModal from './AlumnoDetailsModal';
 import AlumnoForm from './AlumnoForm';
+import * as XLSX from 'xlsx';
+import { jsPDF } from "jspdf";
+import "jspdf-autotable";
 
 const AlumnoList = () => {
     const [alumnos, setAlumnos] = useState([]);
@@ -56,11 +59,71 @@ const AlumnoList = () => {
         );
     });
 
+    const exportAlumnos = (type) => {
+        const alumnosData = [
+            ["ID", "Nombre", "Apellidos", "DNI", "Email","Telefono","Direccion","Pais","Provincia","Propietario","Creado", "Sexo", "Situación Laboral", "Disponibilidad", "Estado", "Fecha Nacimiento"],
+            ...alumnos.map(alumno => [
+                alumno.id, alumno.nombre, alumno.apellidos, alumno.dni, alumno.email, alumno.telefono, alumno.direccion, alumno.pais, alumno.provincia, alumno.propietario, alumno.creado, alumno.sexo, alumno.situacionLaboral, alumno.disponibilidad, alumno.status, alumno.fechaNacimiento
+            ])
+        ];
+    
+        if (type === 'excel') {
+            // Exportar a Excel
+            const ws = XLSX.utils.aoa_to_sheet(alumnosData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Alumnos");
+            XLSX.writeFile(wb, "Alumnos.xlsx");
+        } else if (type === 'pdf') {
+            // Exportar a PDF en modo horizontal
+            const doc = new jsPDF('landscape'); // Cambiamos a modo horizontal
+            doc.setFontSize(18);
+            doc.text("Listado de Alumnos", 14, 15);
+        
+            // Usamos autoTable para crear una tabla en el PDF
+            doc.autoTable({
+                head: [alumnosData[0]], // Cabecera de la tabla
+                body: alumnosData.slice(1), // Cuerpo de la tabla
+                startY: 20, // Ajustamos el inicio de la tabla
+                theme: 'grid',
+                styles: {
+                    fontSize: 7, // Reducimos el tamaño de la fuente para que quepa más contenido
+                    cellPadding: 2, // Ajustamos el relleno de las celdas
+                },
+                headStyles: {
+                    fillColor: [22, 160, 133], // Color de fondo para la cabecera
+                    textColor: [255, 255, 255], // Color del texto en la cabecera
+                },
+                columnStyles: {
+                    0: { cellWidth: 20 }, // Ajustamos el ancho de la primera columna (ID)
+                    // Puedes ajustar otras columnas si es necesario
+                },
+            });
+        
+            // Descargar el PDF
+            doc.save("Alumnos.pdf");
+        }
+    };
+    
+
     return (
         <div>
             <h1 className="text-center">Lista de Alumnos</h1>
             <br /><br />
             <Button variant="primary" onClick={handleAdd}>Añadir Alumno</Button>
+            <Accordion defaultActiveKey="0">
+                <Accordion.Item eventKey="0">
+                    <Accordion.Header>Exportar Datos</Accordion.Header>
+                    <Accordion.Body>
+                        <Button variant="primary" onClick={() => exportAlumnos('excel')}>
+                            Exportar a Excel
+                        </Button>
+                        <br />
+                        <Button variant="secondary" onClick={() => exportAlumnos('pdf')}>
+                            Exportar a PDF
+                        </Button>
+                    </Accordion.Body>
+                </Accordion.Item>
+            </Accordion>
             <hr />
 
             {/* Búsqueda y filtros */}

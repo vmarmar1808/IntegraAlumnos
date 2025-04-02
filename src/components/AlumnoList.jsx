@@ -1,0 +1,177 @@
+import React, { useEffect, useState } from 'react';
+import { Button, Table, Form, Row, Col } from 'react-bootstrap';
+import { getAlumnos, deleteAlumno } from '../services/AlumnoService';
+import AlumnoDetailsModal from './AlumnoDetailsModal';
+import AlumnoForm from './AlumnoForm';
+
+const AlumnoList = () => {
+    const [alumnos, setAlumnos] = useState([]);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filtroDisponibilidad, setFiltroDisponibilidad] = useState('');
+    const [filtroSexo, setFiltroSexo] = useState('');
+    const [filtroSituacion, setFiltroSituacion] = useState('');
+    const [filtroStatus, setFiltroStatus] = useState('');
+    const [showDetails, setShowDetails] = useState(false);
+    const [showForm, setShowForm] = useState(false);
+    const [selectedAlumno, setSelectedAlumno] = useState(null);
+
+
+
+    useEffect(() => {
+        const fetchAlumnos = async () => {
+            const data = await getAlumnos();
+            setAlumnos(data);
+        };
+        fetchAlumnos();
+    }, []);
+
+    const handleDelete = async (id) => {
+        if (window.confirm('¿Estás seguro de que deseas eliminar este alumno?')) {
+            await deleteAlumno(id);
+            setAlumnos(alumnos.filter((alumno) => alumno.id !== id));
+        }
+    };
+
+    const handleEdit = (alumno) => {
+        setSelectedAlumno(alumno);
+        setShowForm(true);
+    };
+
+    const handleAdd = () => {
+        setSelectedAlumno(null);
+        setShowForm(true);
+    };
+
+
+    // Filtrar alumnos según el término de búsqueda y los filtros seleccionados
+    const filteredAlumnos = alumnos.filter(alumno => {
+        return (
+            (alumno.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+             alumno.apellidos.toLowerCase().includes(searchTerm.toLowerCase()) ||
+             alumno.telefono.includes(searchTerm)) &&
+            (filtroDisponibilidad === '' || alumno.disponibilidad === filtroDisponibilidad) &&
+            (filtroSexo === '' || alumno.sexo === filtroSexo) &&
+            (filtroSituacion === '' || alumno.situacionLaboral === filtroSituacion) &&
+            (filtroStatus === '' || alumno.status === filtroStatus)
+        );
+    });
+
+    return (
+        <div>
+            <h1 className="text-center">Lista de Alumnos</h1>
+            <br /><br />
+            <Button variant="primary" onClick={handleAdd}>Añadir Alumno</Button>
+            <hr />
+
+            {/* Búsqueda y filtros */}
+            <Row className="mb-3">
+                <Col md={6}>
+                    <Form.Control
+                        type="text"
+                        placeholder="Buscar por nombre, apellidos o teléfono..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-75"
+                    />
+                </Col>
+                <Col md={6}>
+                    <Row>
+                        <Col>
+                            <Form.Select value={filtroDisponibilidad} onChange={(e) => setFiltroDisponibilidad(e.target.value)}>
+                                <option value="">Disponibilidad</option>
+                                <option value="Mañana">Mañana</option>
+                                <option value="Tarde">Tarde</option>
+                            </Form.Select>
+                        </Col>
+                        <Col>
+                            <Form.Select value={filtroSexo} onChange={(e) => setFiltroSexo(e.target.value)}>
+                                <option value="">Sexo</option>
+                                <option value="Masculino">Masculino</option>
+                                <option value="Femenino">Femenino</option>
+                            </Form.Select>
+                        </Col>
+                        <Col>
+                            <Form.Select value={filtroSituacion} onChange={(e) => setFiltroSituacion(e.target.value)}>
+                                <option value="">Situación Laboral</option>
+                                <option value="Desempleado">Desempleado</option>
+                                <option value="ocupado">Ocupado</option>
+                            </Form.Select>
+                        </Col>
+                        <Col>
+                            <Form.Select value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)}>
+                                <option value="">Estado</option>
+                                <option value="cliente">Cliente</option>
+                                <option value="en_oportunidad">En Oportunidad</option>
+                                <option value="lead_caliente">Lead Caliente</option>
+                                <option value="lead_frio">Lead Frío</option>
+                                <option value="lead_templado">Lead Templado</option>
+                            </Form.Select>
+                        </Col>
+                    </Row>
+                </Col>
+            </Row>
+
+            {/* Tabla de alumnos */}
+            <Table striped bordered hover>
+                <thead>
+                    <tr>
+                        <th className="text-center">Nombre</th>
+                        <th className="text-center">Apellidos</th>
+                        <th className="text-center">Email</th>
+                        <th className="text-center">Teléfono</th>
+                        <th className="text-center">Fecha de nacimiento</th>
+                        <th className="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {filteredAlumnos.map((alumno) => (
+                        <tr key={alumno.id}>
+                            <td>{alumno.nombre}</td>
+                            <td>{alumno.apellidos}</td>
+                            <td>{alumno.email}</td>
+                            <td>{alumno.telefono}</td>
+                            <td>{alumno.fechaNacimiento}</td>
+                            <td>
+                                <div className="d-flex justify-content-center gap-2">
+                                    <Button variant="info" onClick={() => { setSelectedAlumno(alumno); setShowDetails(true); }}>
+                                        Ver Detalles
+                                    </Button>
+                                    <Button variant="warning" onClick={() => handleEdit(alumno)}>
+                                        Editar
+                                    </Button>
+                                    <Button variant="danger" onClick={() => handleDelete(alumno.id)}>
+                                        Eliminar
+                                    </Button>
+                                </div>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </Table>
+
+            {/* Modales */}
+            {showDetails && (
+                <AlumnoDetailsModal
+                    show={showDetails}
+                    onHide={() => setShowDetails(false)}
+                    alumno={selectedAlumno}
+                />
+            )}
+
+            {showForm && (
+                <AlumnoForm
+                    show={showForm}
+                    onHide={() => setShowForm(false)}
+                    alumno={selectedAlumno}
+                    setAlumnos={setAlumnos}
+                />
+            )}
+        </div>
+    );
+};
+
+export default AlumnoList;
+
+
+
+

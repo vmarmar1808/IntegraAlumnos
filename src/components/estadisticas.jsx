@@ -1,25 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import { Bar} from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
+import { Bar } from 'react-chartjs-2';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import { getAlumnos } from '../services/AlumnoService';
+import { Button, Offcanvas, Form } from 'react-bootstrap';
 
 // Registrar los componentes necesarios de Chart.js
-ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 const Estadisticas = () => {
-    const [genderData, setGenderData] = useState({
-        labels: [],
-        datasets: [],
-    });
-    const [jobStatusData, setJobStatusData] = useState({
-        labels: [],
-        datasets: [],
-    });
-    const [availabilityData, setAvailabilityData] = useState({
-        labels: [],
-        datasets: [],
-    });
-    const [statusData, setStatusData] = useState({
+    const [alumnos, setAlumnos] = useState([]);
+    const [, setFilteredAlumnos] = useState([]);
+    const [showFilters, setShowFilters] = useState(false);
+
+    // Filtros
+    const [filtroSexo, setFiltroSexo] = useState('');
+    const [filtroDisponibilidad, setFiltroDisponibilidad] = useState('');
+    const [filtroSituacionLaboral, setFiltroSituacionLaboral] = useState('');
+    const [filtroStatus, setFiltroStatus] = useState('');
+    const [filtroEdad, setFiltroEdad] = useState([0, 100]); 
+
+    const [chartData, setChartData] = useState({
         labels: [],
         datasets: [],
     });
@@ -28,121 +28,155 @@ const Estadisticas = () => {
         const fetchAlumnos = async () => {
             const data = await getAlumnos();
             if (data && Array.isArray(data)) {
+                setAlumnos(data);
+                setFilteredAlumnos(data);
                 prepareChartData(data);
-            } else {
-                console.error('No se recibieron datos válidos de la API');
             }
         };
         fetchAlumnos();
     }, []);
 
-    const prepareChartData = (data) => {
-        if (!data || !Array.isArray(data)) {
-            console.error('Datos inválidos para preparar los gráficos');
-            return;
+    const calcularEdad = (fechaNacimiento) => {
+        const hoy = new Date();
+        const nacimiento = new Date(fechaNacimiento);
+        let edad = hoy.getFullYear() - nacimiento.getFullYear();
+        const mes = hoy.getMonth() - nacimiento.getMonth();
+        if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) {
+            edad--;
         }
+        return edad;
+    };
 
-        // Estadísticas de Género
-        const maleCount = data.filter(alumno => alumno.sexo === 'Masculino').length;
-        const femaleCount = data.filter(alumno => alumno.sexo === 'Femenino').length;
+    const applyFilters = () => {
+        const filtered = alumnos.filter((alumno) => {
+            const edad = calcularEdad(alumno.fechaNacimiento);
+            return (
+                (filtroSexo === '' || alumno.sexo === filtroSexo) &&
+                (filtroDisponibilidad === '' || alumno.disponibilidad === filtroDisponibilidad) &&
+                (filtroSituacionLaboral === '' || alumno.situacionLaboral === filtroSituacionLaboral) &&
+                (filtroStatus === '' || alumno.status === filtroStatus) &&
+                (edad >= filtroEdad[0] && edad <= filtroEdad[1])
+            );
+        });
+        setFilteredAlumnos(filtered);
+        prepareChartData(filtered);
+        setShowFilters(false); 
+    };
 
-        setGenderData({
-            labels: ['Hombres', 'Mujeres'],
+    const prepareChartData = (data) => {
+        const genderCounts = {
+            Masculino: data.filter((alumno) => alumno.sexo === 'Masculino').length,
+            Femenino: data.filter((alumno) => alumno.sexo === 'Femenino').length,
+        };
+
+        setChartData({
+            labels: ['Masculino', 'Femenino'],
             datasets: [
                 {
                     label: 'Cantidad de Alumnos',
-                    data: [maleCount, femaleCount],
+                    data: [genderCounts.Masculino, genderCounts.Femenino],
                     backgroundColor: ['rgba(54, 162, 235, 0.6)', 'rgba(255, 99, 132, 0.6)'],
                 },
             ],
         });
+    };
 
-        // Situación Laboral
-        const unemployedCount = data.filter(alumno => alumno.situacionLaboral === 'Desempleado').length;
-        const employedCount = data.filter(alumno => alumno.situacionLaboral === 'ocupado').length;
-
-        setJobStatusData({
-            labels: ['Desempleado', 'Ocupado'],
-            datasets: [
-                {
-                    label: 'Situación Laboral',
-                    data: [unemployedCount, employedCount],
-                    backgroundColor: ['rgba(255, 99, 132, 0.6)', 'rgba(75, 192, 192, 0.6)'],
-                },
-            ],
-        });
-
-        // Disponibilidad (Mañana/Tarde)
-        const morningCount = data.filter(alumno => alumno.disponibilidad === 'Mañana').length;
-        const afternoonCount = data.filter(alumno => alumno.disponibilidad === 'Tarde').length;
-
-        setAvailabilityData({
-            labels: ['Mañana', 'Tarde'],
-            datasets: [
-                {
-                    label: 'Disponibilidad',
-                    data: [morningCount, afternoonCount],
-                    backgroundColor: ['rgba(255, 206, 86, 0.6)', 'rgba(153, 102, 255, 0.6)'],
-                },
-            ],
-        });
-
-        // Estado de los Alumnos (Status)
-        const statusLabels = ['cliente', 'en_oportunidad', 'lead_caliente', 'lead_frio', 'lead_templado'];
-        const statusCounts = statusLabels.map(status => data.filter(alumno => alumno.status === status).length);
-
-        setStatusData({
-            labels: statusLabels,
-            datasets: [
-                {
-                    label: 'Estado de Alumnos',
-                    data: statusCounts,
-                    backgroundColor: ['rgba(75, 192, 192, 0.6)', 'rgba(54, 162, 235, 0.6)', 'rgba(255, 99, 132, 0.6)', 'rgba(255, 206, 86, 0.6)', 'rgba(153, 102, 255, 0.6)'],
-                },
-            ],
-        });
-    };    
+    const handleEdadChange = (e, index) => {
+        const newFiltroEdad = [...filtroEdad];
+        newFiltroEdad[index] = parseInt(e.target.value, 10);
+        setFiltroEdad(newFiltroEdad);
+    };
 
     return (
-                <div style={{ textAlign: 'center', margin: '20px' }}>
+        <div style={{ textAlign: 'center', margin: '20px' }}>
             <h1>Estadísticas de Alumnos</h1>
-            <br />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', padding: '20px' }}>
-                <div>
-                    <h2>Estadísticas de Género</h2>
-                    {genderData.labels.length > 0 ? (
-                        <Bar data={genderData} options={{ responsive: true }} />
-                    ) : (
-                        <p>Cargando datos o no hay datos disponibles...</p>
-                    )}
-                </div>
-                <div>
-                    <h2>Situación Laboral</h2>
-                    {jobStatusData.labels.length > 0 ? (
-                        <Bar data={jobStatusData} options={{ responsive: true }} />
-                    ) : (
-                        <p>Cargando datos o no hay datos disponibles...</p>
-                    )}
-                </div>
-                <div>
-                    <h2>Disponibilidad</h2>
-                    {availabilityData.labels.length > 0 ? (
-                        <Bar data={availabilityData} options={{ responsive: true }} />
-                    ) : (
-                        <p>Cargando datos o no hay datos disponibles...</p>
-                    )}
-                </div>
-                <div>
-                    <h2>Estado de los Alumnos</h2>
-                    {statusData.labels.length > 0 ? (
-                        <Bar data={statusData} options={{ responsive: true }} />
-                    ) : (
-                        <p>Cargando datos o no hay datos disponibles...</p>
-                    )}
-                </div>
+            <Button variant="primary" onClick={() => setShowFilters(true)} style={{ marginBottom: '20px' }}>
+                &#9776; Filtros
+            </Button>
+
+            {/* Panel lateral de filtros */}
+            <Offcanvas show={showFilters} onHide={() => setShowFilters(false)} placement="end">
+                <Offcanvas.Header closeButton>
+                    <Offcanvas.Title>Filtros</Offcanvas.Title>
+                </Offcanvas.Header>
+                <Offcanvas.Body>
+                    <Form>
+                        <Form.Group controlId="filtroSexo">
+                            <Form.Label>Sexo</Form.Label>
+                            <Form.Select value={filtroSexo} onChange={(e) => setFiltroSexo(e.target.value)}>
+                                <option value="">Todos</option>
+                                <option value="Masculino">Masculino</option>
+                                <option value="Femenino">Femenino</option>
+                            </Form.Select>
+                        </Form.Group>
+
+                        <Form.Group controlId="filtroDisponibilidad" className="mt-3">
+                            <Form.Label>Disponibilidad</Form.Label>
+                            <Form.Select value={filtroDisponibilidad} onChange={(e) => setFiltroDisponibilidad(e.target.value)}>
+                                <option value="">Todos</option>
+                                <option value="Mañana">Mañana</option>
+                                <option value="Tarde">Tarde</option>
+                            </Form.Select>
+                        </Form.Group>
+
+                        <Form.Group controlId="filtroSituacionLaboral" className="mt-3">
+                            <Form.Label>Situación Laboral</Form.Label>
+                            <Form.Select value={filtroSituacionLaboral} onChange={(e) => setFiltroSituacionLaboral(e.target.value)}>
+                                <option value="">Todos</option>
+                                <option value="Desempleado">Desempleado</option>
+                                <option value="ocupado">Ocupado</option>
+                            </Form.Select>
+                        </Form.Group>
+
+                        <Form.Group controlId="filtroStatus" className="mt-3">
+                            <Form.Label>Status</Form.Label>
+                            <Form.Select value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)}>
+                                <option value="">Todos</option>
+                                <option value="cliente">Cliente</option>
+                                <option value="en_oportunidad">En Oportunidad</option>
+                                <option value="lead_caliente">Lead Caliente</option>
+                                <option value="lead_frio">Lead Frío</option>
+                                <option value="lead_templado">Lead Templado</option>
+                            </Form.Select>
+                        </Form.Group>
+
+                        <Form.Group controlId="filtroEdad" className="mt-3">
+                            <Form.Label>Rango de Edad</Form.Label>
+                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                <Form.Control
+                                    type="number"
+                                    value={filtroEdad[0]}
+                                    onChange={(e) => handleEdadChange(e, 0)}
+                                    min="0"
+                                    max="1000"
+                                />
+                                <span>-</span>
+                                <Form.Control
+                                    type="number"
+                                    value={filtroEdad[1]}
+                                    onChange={(e) => handleEdadChange(e, 1)}
+                                    min="0"
+                                    max="1000"
+                                />
+                            </div>
+                        </Form.Group>
+
+                        <Button variant="primary" className="mt-4" onClick={applyFilters}>
+                            Aplicar Filtros
+                        </Button>
+                    </Form>
+                </Offcanvas.Body>
+            </Offcanvas>
+
+            {/* Gráfico */}
+            <div style={{ marginTop: '20px' }}>
+                {chartData.labels.length > 0 ? (
+                    <Bar data={chartData} options={{ responsive: true }} />
+                ) : (
+                    <p>No hay datos disponibles para mostrar.</p>
+                )}
             </div>
         </div>
-
     );
 };
 

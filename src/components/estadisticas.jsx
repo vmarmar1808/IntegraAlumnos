@@ -43,7 +43,7 @@ const Estadisticas = () => {
 
         const fetchPaises = async () => {
             try {
-                const response = await axios.get('http://localhost:8080/paises'); // Cambia la URL según tu backend
+                const response = await axios.get('http://localhost:8080/paises');
                 setPaises(response.data);
             } catch (error) {
                 console.error('Error al obtener países:', error);
@@ -56,7 +56,9 @@ const Estadisticas = () => {
 
     const fetchProvincias = async (paisId) => {
         try {
-            const response = await axios.get(`http://localhost:8080/provincias/${paisId}`); // Cambia la URL según tu backend
+            console.log('Cargando provincias para el país con ID:', paisId); // Depuración
+            const response = await axios.get(`http://localhost:8080/provincias/${paisId}`);
+            console.log('Provincias obtenidas:', response.data); // Depuración
             setProvincias(response.data);
         } catch (error) {
             console.error('Error al obtener provincias:', error);
@@ -110,11 +112,11 @@ const Estadisticas = () => {
     };
 
     const handlePaisChange = (e) => {
-        const selectedPais = e.target.value;
+        const selectedPais = e.target.value; // Esto será el ID del país (número)
         setFiltroPais(selectedPais);
         setFiltroProvincia(''); // Reiniciar la provincia al cambiar el país
         if (selectedPais) {
-            fetchProvincias(selectedPais);
+            fetchProvincias(selectedPais); // Pasar el ID del país
         } else {
             setProvincias([]);
         }
@@ -151,7 +153,7 @@ const Estadisticas = () => {
                             <Form.Select value={filtroPais} onChange={handlePaisChange}>
                                 <option value="">Todos</option>
                                 {paises.map((pais) => (
-                                    <option key={pais.id} value={pais.paisnombre}>
+                                    <option key={pais.id} value={pais.id}> {/* Cambiar a pais.id */}
                                         {pais.paisnombre}
                                     </option>
                                 ))}
@@ -163,8 +165,8 @@ const Estadisticas = () => {
                             <Form.Select value={filtroProvincia} onChange={handleProvinciaChange} disabled={!filtroPais}>
                                 <option value="">Todas</option>
                                 {provincias.map((provincia) => (
-                                    <option key={provincia.id} value={provincia.estadonombre}>
-                                        {provincia.estadonombre}
+                                    <option key={provincia.id} value={provincia.nombre}>
+                                        {provincia.nombre}
                                     </option>
                                 ))}
                             </Form.Select>

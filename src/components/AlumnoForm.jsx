@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Form, Modal } from 'react-bootstrap';
 import { addAlumno, updateAlumno, getAlumnos } from '../services/AlumnoService';
+import axios from 'axios';
 
 const AlumnoForm = ({ show, onHide, alumno, setAlumnos }) => {
     const [formData, setFormData] = useState({
@@ -9,7 +10,7 @@ const AlumnoForm = ({ show, onHide, alumno, setAlumnos }) => {
         email: '',
         telefono: '',
         direccion: '',
-        codigoPostañal: '',
+        codigoPostal: '',
         fechaNacimiento: '',
         dni: '',
         pais: '',
@@ -22,7 +23,22 @@ const AlumnoForm = ({ show, onHide, alumno, setAlumnos }) => {
         status: ''
     });
 
+    const [paises, setPaises] = useState([]);
+    const [provincias, setProvincias] = useState([]);
+
     useEffect(() => {
+        // Cargar países al cargar el formulario
+        const fetchPaises = async () => {
+            try {
+                const response = await axios.get('http://localhost:8080/paises'); // Cambia la URL según tu backend
+                setPaises(response.data);
+            } catch (error) {
+                console.error('Error al cargar países:', error);
+            }
+        };
+
+        fetchPaises();
+
         if (alumno) {
             setFormData({
                 nombre: alumno.nombre,
@@ -42,6 +58,11 @@ const AlumnoForm = ({ show, onHide, alumno, setAlumnos }) => {
                 situacionLaboral: alumno.situacionLaboral,
                 status: alumno.status
             });
+
+            // Cargar provincias del país seleccionado
+            if (alumno.pais) {
+                fetchProvincias(alumno.pais);
+            }
         } else {
             // Si no hay un alumno seleccionado (añadir nuevo), reseteamos los campos
             setFormData({
@@ -65,8 +86,26 @@ const AlumnoForm = ({ show, onHide, alumno, setAlumnos }) => {
         }
     }, [alumno]);
 
+    const fetchProvincias = async (paisId) => {
+        try {
+            console.log('Cargando provincias para el país con ID:', paisId); // Depuración
+            const response = await axios.get(`http://localhost:8080/provincias/${paisId}`);
+            console.log('Provincias obtenidas:', response.data); // Depuración
+            setProvincias(response.data);
+        } catch (error) {
+            console.error('Error al cargar provincias:', error);
+        }
+    };
+
     const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+        setFormData({ ...formData, [name]: value });
+    
+        // Si se selecciona un país, cargar las provincias correspondientes
+        if (name === 'pais') {
+            setFormData({ ...formData, pais: value, provincia: '' }); // Reiniciar provincia
+            fetchProvincias(value); // Pasar el ID del país
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -174,22 +213,37 @@ const AlumnoForm = ({ show, onHide, alumno, setAlumnos }) => {
 
                     <Form.Group controlId="formPais">
                         <Form.Label>País</Form.Label>
-                        <Form.Control
-                            type="text"
+                        <Form.Select
                             name="pais"
                             value={formData.pais}
                             onChange={handleChange}
-                        />
+                            required
+                        >
+                            <option value="">Seleccione un país</option>
+                            {paises.map((pais) => (
+                                <option key={pais.id} value={pais.id}> {/* Cambiar a pais.id */}
+                                    {pais.paisnombre}
+                                </option>
+                            ))}
+                        </Form.Select>
                     </Form.Group>
 
                     <Form.Group controlId="formProvincia">
                         <Form.Label>Provincia</Form.Label>
-                        <Form.Control
-                            type="text"
+                        <Form.Select
                             name="provincia"
                             value={formData.provincia}
                             onChange={handleChange}
-                        />
+                            disabled={!formData.pais}
+                            required
+                        >
+                            <option value="">Seleccione una provincia</option>
+                            {provincias.map((provincia) => (
+                                <option key={provincia.id} value={provincia.estadonombre}>
+                                    {provincia.nombre}
+                                </option>
+                            ))}
+                        </Form.Select>
                     </Form.Group>
 
                     <Form.Group controlId="formSexo">
@@ -273,7 +327,6 @@ const AlumnoForm = ({ show, onHide, alumno, setAlumnos }) => {
                             <option value="lead_frio">Lead frio</option>
                             <option value="cliente">Cliente</option>
                             <option value="en_oportunidad">En oportunidad</option>
-
                         </Form.Control>
                     </Form.Group>
 
@@ -289,5 +342,3 @@ const AlumnoForm = ({ show, onHide, alumno, setAlumnos }) => {
 };
 
 export default AlumnoForm;
-
-

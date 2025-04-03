@@ -9,7 +9,7 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
 const Estadisticas = () => {
     const [alumnos, setAlumnos] = useState([]);
-    const [ ,setFilteredAlumnos] = useState([]);
+    const [, setFilteredAlumnos] = useState([]);
     const [showFilters, setShowFilters] = useState(false);
     const [chartData, setChartData] = useState({
         labels: [],
@@ -87,7 +87,7 @@ const Estadisticas = () => {
                     <p>No hay datos disponibles para mostrar.</p>
                 )}
             </div>
-        </div>    
+        </div>
     );
 };
 

@@ -112,8 +112,8 @@ const FiltrosAlumnos = ({ onFilterChange, showFilters, setShowFilters }) => {
                         >
                             <option value="">Todas</option>
                             {provincias.map((provincia) => (
-                                <option key={provincia.id} value={provincia.estadonombre}>
-                                    {provincia.estadonombre}
+                                <option key={provincia.id} value={provincia.nombre}>
+                                    {provincia.nombre}
                                 </option>
                             ))}
                         </Form.Select>

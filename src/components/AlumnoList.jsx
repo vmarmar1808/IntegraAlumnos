@@ -6,27 +6,64 @@ import AlumnoForm from './AlumnoForm';
 import * as XLSX from 'xlsx';
 import { jsPDF } from "jspdf";
 import "jspdf-autotable";
+import FiltrosAlumnos from './FiltrosAlumno';
 
 const AlumnoList = () => {
     const [alumnos, setAlumnos] = useState([]);
+    const [filteredAlumnos, setFilteredAlumnos] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
-    const [filtroDisponibilidad, setFiltroDisponibilidad] = useState('');
-    const [filtroSexo, setFiltroSexo] = useState('');
-    const [filtroSituacion, setFiltroSituacion] = useState('');
-    const [filtroStatus, setFiltroStatus] = useState('');
+    const [showFilters, setShowFilters] = useState(false);
     const [showDetails, setShowDetails] = useState(false);
     const [showForm, setShowForm] = useState(false);
     const [selectedAlumno, setSelectedAlumno] = useState(null);
-
-
+    const [filters, setFilters] = useState({
+        sexo: '',
+        disponibilidad: '',
+        situacionLaboral: '',
+        status: '',
+        edad: [0, 100],
+        pais: '',
+        provincia: '',
+        calcularEdad: null
+    });
 
     useEffect(() => {
         const fetchAlumnos = async () => {
             const data = await getAlumnos();
             setAlumnos(data);
+            setFilteredAlumnos(data);
         };
         fetchAlumnos();
     }, []);
+
+    useEffect(() => {
+        const filtered = alumnos.filter(alumno => {
+            const matchesSearch = 
+                alumno.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                alumno.apellidos.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                alumno.telefono.includes(searchTerm);
+            
+            if (!filters.calcularEdad) return matchesSearch;
+            
+            const edad = filters.calcularEdad(alumno.fechaNacimiento);
+            const matchesFilters = 
+                (filters.sexo === '' || alumno.sexo === filters.sexo) &&
+                (filters.disponibilidad === '' || alumno.disponibilidad === filters.disponibilidad) &&
+                (filters.situacionLaboral === '' || alumno.situacionLaboral === filters.situacionLaboral) &&
+                (filters.status === '' || alumno.status === filters.status) &&
+                (edad >= filters.edad[0] && edad <= filters.edad[1]) &&
+                (filters.pais === '' || alumno.pais === filters.pais) &&
+                (filters.provincia === '' || alumno.provincia === filters.provincia);
+            
+            return matchesSearch && matchesFilters;
+        });
+        
+        setFilteredAlumnos(filtered);
+    }, [alumnos, searchTerm, filters]);
+
+    const handleFilterChange = (newFilters) => {
+        setFilters(newFilters);
+    };
 
     const handleDelete = async (id) => {
         if (window.confirm('¿Estás seguro de que deseas eliminar este alumno?')) {
@@ -45,20 +82,6 @@ const AlumnoList = () => {
         setShowForm(true);
     };
 
-
-    // Filtrar alumnos según el término de búsqueda y los filtros seleccionados
-    const filteredAlumnos = alumnos.filter(alumno => {
-        return (
-            (alumno.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-             alumno.apellidos.toLowerCase().includes(searchTerm.toLowerCase()) ||
-             alumno.telefono.includes(searchTerm)) &&
-            (filtroDisponibilidad === '' || alumno.disponibilidad === filtroDisponibilidad) &&
-            (filtroSexo === '' || alumno.sexo === filtroSexo) &&
-            (filtroSituacion === '' || alumno.situacionLaboral === filtroSituacion) &&
-            (filtroStatus === '' || alumno.status === filtroStatus)
-        );
-    });
-
     const exportAlumnos = (type) => {
         const alumnosData = [
             ["ID", "Nombre", "Apellidos", "DNI", "Email","Telefono","Direccion","Pais","Provincia","Propietario","Creado", "Sexo", "Situación Laboral", "Disponibilidad", "Estado", "Fecha Nacimiento"],
@@ -68,50 +91,44 @@ const AlumnoList = () => {
         ];
     
         if (type === 'excel') {
-            // Exportar a Excel
             const ws = XLSX.utils.aoa_to_sheet(alumnosData);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Alumnos");
             XLSX.writeFile(wb, "Alumnos.xlsx");
         } else if (type === 'pdf') {
-            // Exportar a PDF en modo horizontal
-            const doc = new jsPDF('landscape'); // Cambiamos a modo horizontal
+            const doc = new jsPDF('landscape');
             doc.setFontSize(18);
             doc.text("Listado de Alumnos", 14, 15);
         
-            // Usamos autoTable para crear una tabla en el PDF
             doc.autoTable({
-                head: [alumnosData[0]], // Cabecera de la tabla
-                body: alumnosData.slice(1), // Cuerpo de la tabla
-                startY: 20, // Ajustamos el inicio de la tabla
+                head: [alumnosData[0]],
+                body: alumnosData.slice(1),
+                startY: 20,
                 theme: 'grid',
                 styles: {
-                    fontSize: 7, // Reducimos el tamaño de la fuente para que quepa más contenido
-                    cellPadding: 2, // Ajustamos el relleno de las celdas
+                    fontSize: 7,
+                    cellPadding: 2,
                 },
                 headStyles: {
-                    fillColor: [22, 160, 133], // Color de fondo para la cabecera
-                    textColor: [255, 255, 255], // Color del texto en la cabecera
+                    fillColor: [22, 160, 133],
+                    textColor: [255, 255, 255],
                 },
                 columnStyles: {
-                    0: { cellWidth: 20 }, // Ajustamos el ancho de la primera columna (ID)
-                    // Puedes ajustar otras columnas si es necesario
+                    0: { cellWidth: 20 },
                 },
             });
         
-            // Descargar el PDF
             doc.save("Alumnos.pdf");
         }
     };
-    
 
     return (
         <div>
             <h1 className="text-center">Lista de Alumnos</h1>
             <br /><br />
             <div className="d-flex align-items-center justify-content-between mb-3">
-                <Button variant="primary" onClick={handleAdd}>Añadir Alumno</Button>
-                <Accordion className="ms-3" style={{ width: 'auto' }} defaultActiveKey="0">
+                <Button variant="success" onClick={handleAdd}>Añadir Alumno</Button>
+                <Accordion className="ms-3" style={{ width: 'auto' }}>
                     <Accordion.Item eventKey="0">
                         <Accordion.Header>Exportar a PDF o Excel</Accordion.Header>
                         <Accordion.Body>
@@ -127,53 +144,33 @@ const AlumnoList = () => {
             </div>
             <hr />
 
-            {/* Búsqueda y filtros */}
+            {/* Búsqueda (se mantiene igual) */}
             <Row className="mb-3">
-                <Col md={6}>
+                <Col md={4}>
                     <Form.Control
                         type="text"
                         placeholder="Buscar por nombre, apellidos o teléfono..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-75"
+                        className="w-100"
                     />
                 </Col>
-                <Col md={6}>
-                    <Row>
-                        <Col>
-                            <Form.Select value={filtroDisponibilidad} onChange={(e) => setFiltroDisponibilidad(e.target.value)}>
-                                <option value="">Disponibilidad</option>
-                                <option value="Mañana">Mañana</option>
-                                <option value="Tarde">Tarde</option>
-                            </Form.Select>
-                        </Col>
-                        <Col>
-                            <Form.Select value={filtroSexo} onChange={(e) => setFiltroSexo(e.target.value)}>
-                                <option value="">Sexo</option>
-                                <option value="Masculino">Masculino</option>
-                                <option value="Femenino">Femenino</option>
-                            </Form.Select>
-                        </Col>
-                        <Col>
-                            <Form.Select value={filtroSituacion} onChange={(e) => setFiltroSituacion(e.target.value)}>
-                                <option value="">Situación Laboral</option>
-                                <option value="Desempleado">Desempleado</option>
-                                <option value="ocupado">Ocupado</option>
-                            </Form.Select>
-                        </Col>
-                        <Col>
-                            <Form.Select value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)}>
-                                <option value="">Estado</option>
-                                <option value="cliente">Cliente</option>
-                                <option value="en_oportunidad">En Oportunidad</option>
-                                <option value="lead_caliente">Lead Caliente</option>
-                                <option value="lead_frio">Lead Frío</option>
-                                <option value="lead_templado">Lead Templado</option>
-                            </Form.Select>
-                        </Col>
-                    </Row>
+
+                <Col md={8} className="text-end">
+                    <Button variant="primary" onClick={() => setShowFilters(true)}>
+                        &#9776; Filtros Avanzados
+                    </Button>
                 </Col>
             </Row>
+
+             
+
+            {/* Componente de filtros avanzados */}
+            <FiltrosAlumnos 
+                onFilterChange={handleFilterChange}
+                showFilters={showFilters}
+                setShowFilters={setShowFilters}
+            />
 
             {/* Tabla de alumnos */}
             <Table striped bordered hover>
